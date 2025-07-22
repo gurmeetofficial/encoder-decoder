@@ -62,8 +62,14 @@
                         </button>
                     </div>
                     <div>
-                        <label for="encoded-output" class="block text-sm font-medium text-gray-700 mb-1">Base64 Output:</label>
-                        <textarea id="encoded-output" rows="6" readonly class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 shadow-sm cursor-not-allowed" placeholder="Encoded result will appear here..."></textarea>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="encoded-output" class="block text-sm font-medium text-gray-700">Base64 Output:</label>
+                            <button id="copy-encoded-btn" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                Copy
+                            </button>
+                        </div>
+                        <textarea id="encoded-output" rows="6" readonly class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 shadow-sm" placeholder="Encoded result will appear here..."></textarea>
                     </div>
                 </div>
             </div>
@@ -81,15 +87,21 @@
                         </button>
                     </div>
                     <div>
-                        <label for="decoded-output" class="block text-sm font-medium text-gray-700 mb-1">Decoded Text:</label>
-                        <textarea id="decoded-output" rows="6" readonly class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 shadow-sm cursor-not-allowed" placeholder="Decoded result will appear here..."></textarea>
+                        <div class="flex justify-between items-center mb-1">
+                            <label for="decoded-output" class="block text-sm font-medium text-gray-700">Decoded Text:</label>
+                            <button id="copy-decoded-btn" class="text-sm font-medium text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                Copy
+                            </button>
+                        </div>
+                        <textarea id="decoded-output" rows="6" readonly class="w-full p-3 border border-gray-300 rounded-lg bg-gray-50 shadow-sm" placeholder="Decoded result will appear here..."></textarea>
                     </div>
                 </div>
             </div>
         </main>
         
-        <!-- Message/Alert Box -->
-        <div id="alert-box" class="hidden fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg transition-opacity duration-300">
+        <!-- Alert/Toast Notification -->
+        <div id="alert-box" class="hidden fixed top-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg transition-opacity duration-300">
             <p id="alert-message"></p>
         </div>
 
@@ -105,10 +117,12 @@
         const encodeBtn = document.getElementById('encode-btn');
         const textToEncode = document.getElementById('text-to-encode');
         const encodedOutput = document.getElementById('encoded-output');
+        const copyEncodedBtn = document.getElementById('copy-encoded-btn');
 
         const decodeBtn = document.getElementById('decode-btn');
         const textToDecode = document.getElementById('text-to-decode');
         const decodedOutput = document.getElementById('decoded-output');
+        const copyDecodedBtn = document.getElementById('copy-decoded-btn');
 
         const alertBox = document.getElementById('alert-box');
         const alertMessage = document.getElementById('alert-message');
@@ -128,14 +142,51 @@
             encodeTabBtn.classList.remove('active');
         });
 
-        // --- Alert/Message Box Logic ---
-        function showAlert(message) {
+        // --- Alert/Toast Notification Logic ---
+        function showAlert(message, type = 'error') {
             alertMessage.textContent = message;
+            // Set color based on type
+            if (type === 'success') {
+                alertBox.classList.remove('bg-red-500');
+                alertBox.classList.add('bg-green-500');
+            } else {
+                alertBox.classList.remove('bg-green-500');
+                alertBox.classList.add('bg-red-500');
+            }
             alertBox.classList.remove('hidden');
             setTimeout(() => {
                 alertBox.classList.add('hidden');
-            }, 3000); // Hide after 3 seconds
+            }, 2000); // Hide after 2 seconds
         }
+        
+        // --- Copy to Clipboard Logic ---
+        function copyToClipboard(element, type) {
+            if (!element.value) {
+                showAlert(`There is nothing to copy.`, 'error');
+                return;
+            }
+            // Create a temporary textarea to preserve selection
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = element.value;
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            try {
+                document.execCommand('copy');
+                showAlert(`${type} copied to clipboard!`, 'success');
+            } catch (err) {
+                showAlert('Failed to copy text.', 'error');
+                console.error('Copy to clipboard failed: ', err);
+            }
+            document.body.removeChild(tempTextArea);
+        }
+
+        copyEncodedBtn.addEventListener('click', () => {
+            copyToClipboard(encodedOutput, 'Encoded text');
+        });
+
+        copyDecodedBtn.addEventListener('click', () => {
+            copyToClipboard(decodedOutput, 'Decoded text');
+        });
 
         // --- Core Encoding/Decoding Logic ---
 
@@ -148,11 +199,12 @@
             }
             try {
                 // btoa() function encodes a string in Base64
-                const encodedText = btoa(inputText);
+                // It can throw an error for non-latin characters, so we handle that.
+                const encodedText = btoa(unescape(encodeURIComponent(inputText)));
                 encodedOutput.value = encodedText;
             } catch (error) {
                 console.error("Encoding error:", error);
-                showAlert('Could not encode the text. Check console for errors.');
+                showAlert('Could not encode the text. Make sure it is valid UTF-8.');
             }
         });
 
@@ -165,7 +217,7 @@
             }
             try {
                 // atob() function decodes a Base64 encoded string
-                const decodedText = atob(inputText);
+                const decodedText = decodeURIComponent(escape(atob(inputText)));
                 decodedOutput.value = decodedText;
             } catch (error) {
                 console.error("Decoding error:", error);
